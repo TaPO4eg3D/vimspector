@@ -116,9 +116,14 @@ command! -bar -nargs=0
 
 " Dummy autocommands so that we can call this whenever
 augroup VimspectorUserAutoCmds
-  au!
-  au User VimspectorUICreated      silent
-  au User VimspectorTerminalOpened silent
+  autocmd!
+  autocmd User VimspectorUICreated      silent
+  autocmd User VimspectorTerminalOpened silent
+augroup END
+
+augroup Vimspector
+  autocmd!
+  autocmd BufNew * call vimspector#OnBufferCreated( expand( '<afile>' ) )
 augroup END
 
 " boilerplate {{{

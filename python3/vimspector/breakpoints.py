@@ -406,6 +406,12 @@ class ProjectBreakpoints( object ):
         # pay any attention to them anyway.
         self._exception_breakpoints[ 'exceptionOptions' ] = []
 
+
+  def Refresh( self, file_name ):
+    # TODO: Just this file ?
+    self._ShowBreakpoints()
+
+
   def _ShowBreakpoints( self ):
     for file_name, line_breakpoints in self._line_breakpoints.items():
       for bp in line_breakpoints:
@@ -420,7 +426,7 @@ class ProjectBreakpoints( object ):
                  else 'vimspectorBPCond' if 'condition' in bp[ 'options' ]
                  else 'vimspectorBP' )
 
-        if utils.BufferNumberForFile( file_name, False ) > 0:
+        if utils.BufferExists( file_name ):
           signs.PlaceSign( bp[ 'sign_id' ],
                            'VimspectorBP',
                            sign,
@@ -432,7 +438,7 @@ class ProjectBreakpoints( object ):
     if 'sign_id' not in bp:
       return bp[ 'line' ]
 
-    if utils.BufferNumberForFile( file_name, False ) <= 0:
+    if not utils.BufferExists( file_name ):
       return bp[ 'line' ]
 
     signs = vim.eval( "sign_getplaced( '{}', {} )".format(

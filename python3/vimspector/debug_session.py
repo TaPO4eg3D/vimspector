@@ -560,6 +560,13 @@ class DebugSession( object ):
     return response[ 'body' ][ 'targets' ]
 
 
+  def RefreshSigns( self, file_name ):
+    if self._connection:
+      self._codeView.Refresh( file_name )
+    else:
+      self._breakpoints.Refresh( file_name )
+
+
   def _SetUpUI( self ):
     vim.command( 'tab split' )
     self._uiTab = vim.current.tabpage
@@ -630,18 +637,16 @@ class DebugSession( object ):
     if not self._codeView.SetCurrentFrame( frame ):
       return False
 
-    if frame:
-      self._variablesView.SetSyntax( self._codeView.current_syntax )
-      self._stackTraceView.SetSyntax( self._codeView.current_syntax )
-      self._variablesView.LoadScopes( frame )
-      self._variablesView.EvaluateWatches()
+    # the codeView.SetCurrentFrame already checked the frame was valid and
+    # countained a valid source
+    self._variablesView.SetSyntax( self._codeView.current_syntax )
+    self._stackTraceView.SetSyntax( self._codeView.current_syntax )
+    self._variablesView.LoadScopes( frame )
+    self._variablesView.EvaluateWatches()
 
-      if reason == 'stopped':
-        source = frame.get( 'source' ) or {}
-        if 'path' in source:
-          self._breakpoints.ClearTemporaryBreakpoints(
-            source[ 'path' ],
-            frame[ 'line' ] )
+    if reason == 'stopped':
+      self._breakpoints.ClearTemporaryBreakpoints( frame[ 'source' ][ 'path' ],
+                                                   frame[ 'line' ] )
 
     return True
 
