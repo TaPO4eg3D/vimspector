@@ -30,12 +30,18 @@ function! s:_OnEvent( chan_id, data, event ) abort
     return
   endif
 
+  if a:data == [''] && s:bootstrap
+    return
+  endif
+
   if a:data == ['']
     echom 'Channel closed'
     redraw
     unlet s:ch
     py3 _vimspector_session.OnServerExit( 0 )
   else
+    unlet s:bootstrap
+    let s:bootstrap = v:false
     py3 _vimspector_session.OnChannelData( '\n'.join( vim.eval( 'a:data' ) ) )
   endif
 endfunction
@@ -67,6 +73,35 @@ function! vimspector#internal#neochannel#StartDebugSession( config ) abort
   endif
 
   let l:addr = get( a:config, 'host', 'localhost' ) . ':' . a:config[ 'port' ]
+
+  let s:bootstrap = a:config['bootstrap']
+  let bootstrap_timeout = a:config['bootstrapTimeout']
+
+  if s:bootstrap
+    while bootstrap_timeout > 0
+      echo 'Bootsrapping... (' l:bootstrap_timeout 'seconds left)'
+
+      try
+        let s:ch = sockconnect( 'tcp',
+                              \ addr,
+                              \ { 'on_data': funcref( 's:_OnEvent' ) } )
+        redraw
+        if !s:bootstrap
+          return v:true
+        endif
+        sleep 1
+      catch /connection refused/
+        sleep 1
+      endtry
+
+      let bootstrap_timeout -= 1
+    endwhile
+
+    redraw
+    echom 'Bootstrapping timout exceeded...'
+
+    return v:false
+  endif
 
   let attempt = 1
   while attempt <= 10

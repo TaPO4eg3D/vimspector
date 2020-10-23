@@ -80,7 +80,7 @@ endfunction
 
 function! vimspector#internal#neojob#Send( msg ) abort
   if ! exists( 's:job' )
-    echom "Can't send message: Job was not initialised correctly"
+    echom "Can't send message: Job was not initialized correctly"
     redraw
     return 0
   endif

@@ -648,6 +648,15 @@ class DebugSession( object ):
       utils.UserMessage( 'The connection is already created. Please try again',
                          persist = True )
       return
+    
+    # There is the problem with the current flow when we try to use a debugger
+    # which is located fully on the remote server e.g container or SSH Server.
+    # The problem is in the order: it tries to connect to debugger before it is even started
+    # To solve that problem, I offer adding an optional boolean key "bootstrap" to a configuration.
+    # If we have that key, we should perform launch or attach commands to first bootstrap a remote debugger.
+    # Then we can skip that step in the _Launch() function
+    if self._adapter.get('bootstrap'):
+      self._BootstrapRemoteDebugger()
 
     self._logger.info( 'Starting debug adapter with: %s',
                        json.dumps( self._adapter ) )
@@ -800,7 +809,7 @@ class DebugSession( object ):
     if 'remote' in run_config:
       remote = run_config[ 'remote' ]
       remote_exec_cmd = self._GetRemoteExecCommand( remote )
-      commands = self._GetCommands( remote, 'run' )
+      commands = self._GetCommands( remote, 'launch' )
 
       for index, command in enumerate( commands ):
         cmd = remote_exec_cmd + command[ : ]
@@ -915,6 +924,26 @@ class DebugSession( object ):
       },
     } )
 
+  def _BootstrapRemoteDebugger( self ):
+    adapter_config = self._adapter
+
+    launch_config = {}
+    launch_config.update( self._adapter.get( 'configuration', {} ) )
+    launch_config.update( self._configuration[ 'configuration' ] )
+
+    request = self._configuration.get(
+      'remote-request',
+      launch_config.get( 'request', 'launch' ) )
+
+    self._logger.info('Bootstrapping a remote debugger as "{}"...'.format(request))
+
+    # FIXME: This cmdLine hack is not fun.
+    self._PrepareLaunch( self._configuration.get( 'remote-cmdLine', [] ),
+                         adapter_config,
+                         launch_config )
+
+    self._logger.info('The remote debugger is bootstrapped!')
+
 
   def OnFailure( self, reason, request, message ):
     msg = "Request for '{}' failed: {}\nResponse: {}".format( request,
@@ -929,18 +958,19 @@ class DebugSession( object ):
     launch_config.update( self._adapter.get( 'configuration', {} ) )
     launch_config.update( self._configuration[ 'configuration' ] )
 
+    bootstrap = adapter_config.get('bootstrap')
     request = self._configuration.get(
       'remote-request',
       launch_config.get( 'request', 'launch' ) )
 
-    if request == "attach":
+    if request == "attach" and not bootstrap:
       self._splash_screen = utils.DisplaySplash(
         self._api_prefix,
         self._splash_screen,
         "Attaching to debugee..." )
 
       self._PrepareAttach( adapter_config, launch_config )
-    elif request == "launch":
+    elif request == "launch" and not bootstrap:
       self._splash_screen = utils.DisplaySplash(
         self._api_prefix,
         self._splash_screen,
